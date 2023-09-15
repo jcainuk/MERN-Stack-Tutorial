@@ -1,37 +1,44 @@
 import { useState } from "react";
-import { useWorkoutsContext } from "../hooks/useWorkoutsContext";
+import axios from "axios";
 
-const WorkoutForm = () => {
-  const { dispatch } = useWorkoutsContext();
-
+const WorkoutForm = ({ onCreate }) => {
   const [title, setTitle] = useState("");
   const [load, setLoad] = useState("");
   const [reps, setReps] = useState("");
   const [error, setError] = useState(null);
+  const [emptyFields, setEmptyFields] = useState([]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const workout = { title, load, reps };
 
-    const response = await fetch("http://localhost:4000/api/workouts", {
-      method: "POST",
-      body: JSON.stringify(workout),
-      headers: { "Content-type": "application/json" }
-    });
+    try {
+      const response = await axios.post(
+        "http://localhost:4000/api/workouts",
+        workout
+      );
+      const data = response.data;
 
-    const json = await response.json();
-
-    if (!response.ok) {
-      setError(json.error);
-    }
-    if (response.ok) {
       setTitle("");
       setLoad("");
       setReps("");
       setError(null);
-      console.log("new workout added");
-      dispatch({ type: "CREATE_WORKOUT", payload: json });
+      setEmptyFields([]);
+      console.log("New workout added");
+      onCreate(data);
+    } catch (err) {
+      if (err.response) {
+        setError(err.response.data.error);
+        if (err.response.data.emptyFields) {
+          setEmptyFields(err.response.data.emptyFields);
+        } else {
+          setEmptyFields([]);
+        }
+      } else {
+        setError("Network error. Please try again.");
+        setEmptyFields([]);
+      }
     }
   };
 
@@ -43,6 +50,7 @@ const WorkoutForm = () => {
         type="text"
         onChange={(e) => setTitle(e.target.value)}
         value={title}
+        className={emptyFields.includes("title") ? "error" : ""}
       />
 
       <label>Load (in kg):</label>
@@ -50,6 +58,7 @@ const WorkoutForm = () => {
         type="number"
         onChange={(e) => setLoad(e.target.value)}
         value={load}
+        className={emptyFields.includes("load") ? "error" : ""}
       />
 
       <label>Reps:</label>
@@ -57,6 +66,7 @@ const WorkoutForm = () => {
         type="number"
         onChange={(e) => setReps(e.target.value)}
         value={reps}
+        className={emptyFields.includes("reps") ? "error" : ""}
       />
       <button>Add Workout</button>
       {error && <div className="error">{error}</div>}
